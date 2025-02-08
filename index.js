@@ -1,6 +1,6 @@
 require("dotenv").config();
 const express = require("express");
-const AWS = require("aws-sdk");
+const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
 const fs = require("fs");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -12,14 +12,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Configurar AWS SES
-AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+// Configurar AWS SES v3
+const sesClient = new SESClient({
   region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
 });
-
-const ses = new AWS.SES({ apiVersion: "2010-12-01" });
 
 // Función para cargar y reemplazar variables en la plantilla HTML
 const cargarPlantilla = (filePath, variables) => {
@@ -42,6 +42,7 @@ app.post("/enviar-correo", async (req, res) => {
   // Cargar la plantilla y reemplazar los valores
   const htmlTemplate = cargarPlantilla("emailTemplate.html", { nombre, correo, telefono, direccion, motivo, pais, mensaje });
 
+  // Configuración del email
   const params = {
     Source: process.env.REMITENTE_VERIFICADO,
     Destination: {
@@ -59,7 +60,8 @@ app.post("/enviar-correo", async (req, res) => {
   };
 
   try {
-    const data = await ses.sendEmail(params).promise();
+    const command = new SendEmailCommand(params);
+    const data = await sesClient.send(command);
     res.status(200).json({ message: "Correo enviado con éxito", MessageId: data.MessageId });
   } catch (error) {
     res.status(500).json({ error: error.message });
