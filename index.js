@@ -6,7 +6,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // ✅ Configurar CORS correctamente
 const corsOptions = {
@@ -18,6 +18,10 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // Manejar preflight requests
+
+// ✅ Middleware para procesar JSON correctamente (Evita que req.body sea undefined)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Configurar AWS SES v3
 const sesClient = new SESClient({
@@ -37,12 +41,15 @@ const cargarPlantilla = (filePath, variables) => {
   return template;
 };
 
-// Ruta para enviar correos con la plantilla
+// ✅ Ruta para enviar correos con la plantilla
 app.post("/enviar-correo", async (req, res) => {
+  console.log("📩 Body recibido en la API:", req.body); // 👀 Debug para verificar req.body
+
   const { nombre, correo, telefono, direccion, motivo, pais, mensaje } = req.body;
 
   // Validar que todos los campos estén presentes
   if (!nombre || !correo || !telefono || !direccion || !motivo || !pais || !mensaje) {
+    console.error("❌ Faltan datos en la solicitud");
     return res.status(400).json({ error: "Todos los campos son obligatorios" });
   }
 
@@ -69,13 +76,15 @@ app.post("/enviar-correo", async (req, res) => {
   try {
     const command = new SendEmailCommand(params);
     const data = await sesClient.send(command);
+    console.log("✅ Correo enviado con éxito:", data);
     res.status(200).json({ message: "Correo enviado con éxito", MessageId: data.MessageId });
   } catch (error) {
+    console.error("❌ Error al enviar el correo:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
 });
