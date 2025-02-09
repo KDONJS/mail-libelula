@@ -8,9 +8,16 @@ const bodyParser = require("body-parser");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configurar CORS y Body Parser
-app.use(cors());
-app.use(bodyParser.json());
+// ✅ Configurar CORS correctamente
+const corsOptions = {
+  origin: ["http://localhost:4200", "https://libelulahotel.com.pe"], // Permitir Angular y producción
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+  allowedHeaders: "Content-Type, Authorization",
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // Manejar preflight requests
 
 // Configurar AWS SES v3
 const sesClient = new SESClient({
